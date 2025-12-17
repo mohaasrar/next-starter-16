@@ -15,8 +15,15 @@ export const useCreateUser = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UserInput) => usersApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+    onSuccess: async (newUser) => {
+      // Optimistically update the cache with the new user
+      queryClient.setQueryData<any[]>(["users"], (old) => {
+        if (!old) return [newUser];
+        return [newUser, ...old];
+      });
+      
+      // Invalidate and refetch to ensure we have the latest data
+      await queryClient.invalidateQueries({ queryKey: ["users"], refetchType: "active" });
     },
   });
 };
@@ -26,8 +33,15 @@ export const useUpdateUser = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: UserInput }) =>
       usersApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+    onSuccess: async (updatedUser) => {
+      // Optimistically update the cache with the new data
+      queryClient.setQueryData<any[]>(["users"], (old) => {
+        if (!old) return old;
+        return old.map((user) => (user.id === updatedUser.id ? updatedUser : user));
+      });
+      
+      // Invalidate and refetch to ensure we have the latest data
+      await queryClient.invalidateQueries({ queryKey: ["users"], refetchType: "active" });
     },
   });
 };

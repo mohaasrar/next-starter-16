@@ -102,9 +102,24 @@ export const AuthUserForm = ({ user, onSuccess }: AuthUserFormProps) => {
       onSuccess?.();
     } catch (error) {
       console.error("Form submission error:", error);
-      toast.error(isEditMode ? "Failed to update user" : "Failed to create user", {
-        description: error instanceof Error ? error.message : "An error occurred",
-      });
+      
+      let errorMessage = "An error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = String(error.message);
+      }
+      
+      // Check if it's a 403 Forbidden error
+      if (errorMessage.includes("403") || errorMessage.includes("Forbidden") || errorMessage.includes("permission")) {
+        toast.error("Permission Denied", {
+          description: "You don't have permission to update users. You need to be an admin or super admin. Please contact your administrator.",
+        });
+      } else {
+        toast.error(isEditMode ? "Failed to update user" : "Failed to create user", {
+          description: errorMessage,
+        });
+      }
     }
   };
 

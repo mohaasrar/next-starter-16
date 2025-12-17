@@ -163,7 +163,11 @@ export default function UsersPage() {
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <UserForm user={selectedUser} onSuccess={handleFormSuccess} />
+            <UserForm 
+              key={selectedUser?.id || "new"} 
+              user={selectedUser} 
+              onSuccess={handleFormSuccess} 
+            />
           </div>
         </SheetContent>
       </Sheet>

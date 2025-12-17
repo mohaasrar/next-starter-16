@@ -45,6 +45,26 @@ export async function getCurrentUser() {
       },
     });
 
+    if (!user) {
+      console.warn("User not found in database for session user:", session.user.id);
+      return {
+        ...session.user,
+        role: "user" as const,
+      };
+    }
+
+    // Ensure role is set, default to "user" if null/undefined
+    if (!user.role) {
+      console.warn("User role is null/undefined, defaulting to 'user' for:", user.email);
+      user.role = "user";
+    }
+
+    console.log("Current user fetched:", {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
     return user;
   } catch (error) {
     console.error("Error fetching user from database:", error);

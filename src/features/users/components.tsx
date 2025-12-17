@@ -75,8 +75,11 @@ export const UserForm = ({ user, onSuccess }: UserFormProps) => {
 
   const onSubmit = async (data: UserInput) => {
     try {
+      console.log("User form submitted with data:", data);
       if (isEditMode && user) {
-        await updateUser.mutateAsync({ id: user.id, data });
+        console.log("Updating user:", user.id, "with data:", data);
+        const result = await updateUser.mutateAsync({ id: user.id, data });
+        console.log("Update result:", result);
         toast.success("User updated successfully", {
           description: `User ${data.name} has been updated.`,
         });
@@ -89,9 +92,25 @@ export const UserForm = ({ user, onSuccess }: UserFormProps) => {
       form.reset();
       onSuccess?.();
     } catch (error) {
-      toast.error(isEditMode ? "Failed to update user" : "Failed to create user", {
-        description: error instanceof Error ? error.message : "An error occurred",
-      });
+      console.error("User form submission error:", error);
+      
+      let errorMessage = "An error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = String(error.message);
+      }
+      
+      // Check if it's a 403 Forbidden error
+      if (errorMessage.includes("403") || errorMessage.includes("Forbidden") || errorMessage.includes("permission")) {
+        toast.error("Permission Denied", {
+          description: "You don't have permission to update users. You need to be an admin or super admin. Please contact your administrator.",
+        });
+      } else {
+        toast.error(isEditMode ? "Failed to update user" : "Failed to create user", {
+          description: errorMessage,
+        });
+      }
     }
   };
 
@@ -148,30 +167,36 @@ export const UserForm = ({ user, onSuccess }: UserFormProps) => {
           <Controller
             name="role"
             control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="user-form-role">Role</FieldLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <SelectTrigger id="user-form-role" aria-invalid={fieldState.invalid}>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  Select the user&apos;s role. Admins can manage users and settings. Super admins have full access.
-                </FieldDescription>
-                {fieldState.invalid && fieldState.error && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
+            render={({ field, fieldState }) => {
+              console.log("User role field value:", field.value);
+              return (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="user-form-role">Role</FieldLabel>
+                  <Select
+                    value={field.value ?? "user"}
+                    onValueChange={(value) => {
+                      console.log("User role changed to:", value);
+                      field.onChange(value);
+                    }}
+                  >
+                    <SelectTrigger id="user-form-role" aria-invalid={fieldState.invalid}>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="super_admin">Super Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Select the user&apos;s role. Admins can manage users and settings. Super admins have full access.
+                  </FieldDescription>
+                  {fieldState.invalid && fieldState.error && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              );
+            }}
           />
         </FieldGroup>
       </form>

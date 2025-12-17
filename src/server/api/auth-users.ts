@@ -65,12 +65,27 @@ authUsersApi.post("/", async (c) => {
 authUsersApi.put("/:id", async (c) => {
   try {
     const user = await getCurrentUser();
+    
+    if (!user) {
+      return c.json({ error: "Unauthorized: No user session" }, 401);
+    }
+
+    console.log("Current user attempting update:", {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
     const ability = defineAbility({
-      role: (user?.role as "user" | "admin" | "super_admin") || "user",
+      role: (user.role as "user" | "admin" | "super_admin") || "user",
     });
 
     if (!ability.can("update", "User")) {
-      return c.json({ error: "Unauthorized" }, 403);
+      console.log("Authorization failed. User role:", user.role, "cannot update users");
+      return c.json({ 
+        error: "Forbidden: You don't have permission to update users. Required role: admin or super_admin",
+        userRole: user.role 
+      }, 403);
     }
 
     const id = c.req.param("id");
