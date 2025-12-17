@@ -45,6 +45,8 @@ type AuthUser = {
   updatedAt: Date;
 };
 
+import { useAbility } from "@/lib/authorization";
+
 interface AuthUsersTableProps {
   data: AuthUser[];
   onEdit?: (user: AuthUser) => void;
@@ -52,6 +54,8 @@ interface AuthUsersTableProps {
 }
 
 export const AuthUsersTable = ({ data, onEdit, onView }: AuthUsersTableProps) => {
+  const ability = useAbility();
+  const canUpdate = ability.can("update", "User");
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -173,9 +177,11 @@ export const AuthUsersTable = ({ data, onEdit, onView }: AuthUsersTableProps) =>
               <DropdownMenuItem onClick={() => onView?.(user)}>
                 View user
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit?.(user)}>
-                Edit user
-              </DropdownMenuItem>
+              {canUpdate && onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(user)}>
+                  Edit user
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         );

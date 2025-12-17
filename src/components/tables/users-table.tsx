@@ -43,6 +43,8 @@ type User = {
   createdAt: Date | null;
 };
 
+import { useAbility } from "@/lib/authorization";
+
 interface UsersTableProps {
   data: User[];
   onDelete?: (id: number) => void;
@@ -52,6 +54,9 @@ interface UsersTableProps {
 }
 
 export const UsersTable = ({ data, onDelete, onEdit, onView, onBulkDelete }: UsersTableProps) => {
+  const ability = useAbility();
+  const canUpdate = ability.can("update", "User");
+  const canDelete = ability.can("delete", "User");
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -156,16 +161,22 @@ export const UsersTable = ({ data, onDelete, onEdit, onView, onBulkDelete }: Use
               <DropdownMenuItem onClick={() => onView?.(user)}>
                 View user
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit?.(user)}>
-                Edit user
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => onDelete?.(user.id)}
-              >
-                Delete user
-              </DropdownMenuItem>
+              {canUpdate && onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(user)}>
+                  Edit user
+                </DropdownMenuItem>
+              )}
+              {canDelete && onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => onDelete(user.id)}
+                  >
+                    Delete user
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         );

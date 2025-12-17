@@ -108,8 +108,7 @@ export default function UsersPage() {
               Manage your users and their permissions
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {formOpen && <span className="text-sm text-muted-foreground">Form is open</span>}
+          {canCreate && (
             <Button 
               onClick={handleNewUser} 
               variant="default"
@@ -127,7 +126,7 @@ export default function UsersPage() {
               <Plus className="mr-2 h-4 w-4" />
               New User
             </Button>
-          </div>
+          )}
         </div>
 
         <Card>
@@ -136,7 +135,7 @@ export default function UsersPage() {
               <UsersTable 
                 data={data} 
                 onDelete={canDelete ? handleDelete : undefined}
-                onEdit={handleEdit}
+                onEdit={canUpdate ? handleEdit : undefined}
                 onView={handleView}
                 onBulkDelete={canDelete ? handleBulkDelete : undefined}
               />

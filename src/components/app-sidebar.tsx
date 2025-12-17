@@ -11,27 +11,41 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSidebar } from "./sidebar-provider";
+import { useAbility } from "@/lib/authorization";
 
-const navigation = [
+type NavigationItem = {
+  title: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  permission: { action: "read" | "create" | "update" | "delete" | "manage"; subject: "User" | "Settings" | "all" } | null;
+};
+
+const navigation: NavigationItem[] = [
   {
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    permission: null, // Always visible
   },
   {
     title: "Users",
     href: "/dashboard/users",
     icon: Users,
+    permission: { action: "read", subject: "User" },
   },
   {
     title: "Auth Users",
     href: "/dashboard/auth-users",
     icon: UserCog,
+    // Only show to users who can create users (admin/super_admin)
+    permission: { action: "create", subject: "User" },
   },
   {
     title: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
+    // Only show to users who can update settings (admin/super_admin)
+    permission: { action: "update", subject: "Settings" },
   },
 ];
 
@@ -42,6 +56,7 @@ interface AppSidebarProps {
 export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const pathname = usePathname();
   const { isOpen } = useSidebar();
+  const ability = useAbility();
 
   const handleClick = () => {
     onNavigate?.();
@@ -50,6 +65,12 @@ export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   if (!isOpen) {
     return null;
   }
+
+  // Filter navigation items based on permissions
+  const visibleNavigation = navigation.filter((item) => {
+    if (!item.permission) return true; // Always visible
+    return ability.can(item.permission.action, item.permission.subject);
+  });
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-sidebar transition-all duration-300">
@@ -63,7 +84,7 @@ export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
       </div>
       <ScrollArea className="flex-1">
         <nav className="space-y-1 p-4">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             // More precise active state matching
             // For dashboard, only match exact path
             // For other routes, match exact or sub-paths
