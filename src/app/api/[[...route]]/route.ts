@@ -4,6 +4,7 @@ import { usersApi } from "@/server/api/users";
 import { settingsApi } from "@/server/api/settings";
 import { authUsersApi } from "@/server/api/auth-users";
 import { abilitiesApi } from "@/server/api/abilities";
+import { healthApi } from "@/server/api/health";
 import {
   errorHandlerMiddleware,
   authenticationMiddleware,
@@ -17,7 +18,10 @@ const app = new Hono<{ Variables: Variables }>().basePath("/api");
 // Global error handler
 app.onError(errorHandlerMiddleware);
 
-// Apply authentication middleware to all routes
+// Public routes (no authentication required)
+app.route("/health", healthApi);
+
+// Apply authentication middleware to all other routes
 app.use("/*", authenticationMiddleware);
 
 // Apply authorization middleware to all routes (builds abilities)

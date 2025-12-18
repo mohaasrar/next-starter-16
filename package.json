@@ -15,7 +15,9 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:seed:abilities": "tsx prisma/seed-abilities.ts"
+    "db:seed:abilities": "tsx prisma/seed-abilities.ts",
+    "generate:crud": "tsx scripts/generate-crud.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@casl/ability": "^6.7.1",
@@ -74,6 +76,8 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.2.0",
     "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -84,6 +88,8 @@
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "prism": "^1.0.0",
