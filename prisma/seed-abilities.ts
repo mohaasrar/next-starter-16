@@ -76,6 +76,14 @@ async function main() {
       reason: null,
     },
     {
+      subject: "Customer",
+      action: "read",
+      conditions: null,
+      fields: [],
+      inverted: false,
+      reason: null,
+    },
+    {
       subject: "User",
       action: "create",
       conditions: null,
@@ -166,6 +174,14 @@ async function main() {
     {
       subject: "Settings",
       action: "update",
+      conditions: null,
+      fields: [],
+      inverted: false,
+      reason: null,
+    },
+    {
+      subject: "Customer",
+      action: "manage",
       conditions: null,
       fields: [],
       inverted: false,

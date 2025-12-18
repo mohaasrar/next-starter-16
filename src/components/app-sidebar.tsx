@@ -17,7 +17,7 @@ type NavigationItem = {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  permission: { action: "read" | "create" | "update" | "delete" | "manage"; subject: "User" | "Settings" | "all" } | null;
+  permission: { action: "read" | "create" | "update" | "delete" | "manage"; subject: "User" | "Settings" |"Customer" | "all" } | null;
 };
 
 const navigation: NavigationItem[] = [
@@ -40,6 +40,13 @@ const navigation: NavigationItem[] = [
     // Only show to users who can create users (admin/super_admin)
     permission: { action: "create", subject: "User" },
   },
+    {
+    title: "Customers",
+    href: "/dashboard/customers",
+    icon: Users,
+    permission: { action: "read", subject: "Customer" },
+  },
+
   {
     title: "Settings",
     href: "/dashboard/settings",
@@ -73,7 +80,8 @@ export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
     if (!item.permission) return true; // Always visible (e.g., Dashboard)
     // While loading, hide items that require permissions to prevent flash
     if (ability.isPending) return false;
-    return ability.can(item.permission.action, item.permission.subject);
+    // Type assertion needed because CASL accepts string subjects dynamically
+    return (ability as any).can(item.permission.action, item.permission.subject);
   });
 
   return (

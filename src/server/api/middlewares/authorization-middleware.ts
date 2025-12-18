@@ -72,7 +72,7 @@ export async function authorizationMiddleware(c: Context<{ Variables: Variables 
 export const authorize =
   (
     action: "create" | "read" | "update" | "delete" | "manage",
-    subject: "User" | "Settings" | "all"
+    subject: "User" | "Settings" |"Customer" | "all" | string
   ) =>
   async (c: Context<{ Variables: Variables }>, next: Next) => {
     const ability = (c as any).get("ability") as AppAbility | undefined;
@@ -84,7 +84,7 @@ export const authorize =
       );
     }
 
-    if (!ability.can(action, subject)) {
+    if (!ability.can(action, subject as any)) {
       return c.json(
         {
           error: "Forbidden",
