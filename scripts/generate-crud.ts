@@ -31,11 +31,25 @@ function parsePrismaModel(schemaPath: string, modelName: string) {
     label: string;
   }> = [];
 
-  // Parse fields
-  const fieldRegex = /(\w+)\s+(\w+(?:\[\])?)\s*(\?)?\s*([^@\n]*)/g;
-  let fieldMatch;
+  // Parse fields line by line to avoid regex issues with @unique and other attributes
+  const lines = modelBody.split('\n');
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines and model-level directives (starting with @@)
+    if (!trimmedLine || trimmedLine.startsWith('@@')) {
+      continue;
+    }
 
-  while ((fieldMatch = fieldRegex.exec(modelBody)) !== null) {
+    // Match field definition: fieldName Type? @attributes
+    // This regex matches: word (field name), whitespace, word (type), optional ?, rest of line (attributes)
+    const fieldMatch = trimmedLine.match(/^(\w+)\s+(\w+(?:\[\])?)\s*(\?)?\s*(.*)$/);
+    
+    if (!fieldMatch) {
+      continue;
+    }
+
     const [, name, type, optional, attributes] = fieldMatch;
 
     // Skip relations (they have @relation)
@@ -195,8 +209,22 @@ export const ${plural}Api = {
     });
     
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || error.error || "Failed to create ${modelCamel}");
+      let errorMessage = "Failed to create ${modelCamel}";
+      try {
+        // Read response as text first, then try to parse as JSON
+        const text = await response.text();
+        try {
+          const error = JSON.parse(text);
+          errorMessage = error.message || error.error || errorMessage;
+        } catch {
+          // If not valid JSON, use the text as error message
+          errorMessage = text || errorMessage;
+        }
+      } catch (e) {
+        // Fallback if reading response fails
+        errorMessage = errorMessage;
+      }
+      throw new Error(errorMessage);
     }
     
     return response.json();
@@ -209,8 +237,22 @@ export const ${plural}Api = {
     });
     
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || error.error || "Failed to update ${modelCamel}");
+      let errorMessage = "Failed to update ${modelCamel}";
+      try {
+        // Read response as text first, then try to parse as JSON
+        const text = await response.text();
+        try {
+          const error = JSON.parse(text);
+          errorMessage = error.message || error.error || errorMessage;
+        } catch {
+          // If not valid JSON, use the text as error message
+          errorMessage = text || errorMessage;
+        }
+      } catch (e) {
+        // Fallback if reading response fails
+        errorMessage = errorMessage;
+      }
+      throw new Error(errorMessage);
     }
     
     return response.json();
@@ -247,11 +289,15 @@ export const useCreate${modelName} = () => {
   return useMutation({
     mutationFn: (data: ${modelName}Input) => ${plural}Api.create(data),
     onSuccess: async (new${modelName}) => {
+      // Optimistically update the cache for immediate UI feedback
       queryClient.setQueryData<any[]>(["${plural}"], (old) => {
         if (!old) return [new${modelName}];
         return [new${modelName}, ...old];
       });
-      await queryClient.invalidateQueries({ queryKey: ["${plural}"], refetchType: "active" });
+      // Invalidate and refetch to ensure we have the latest data from server
+      await queryClient.invalidateQueries({ queryKey: ["${plural}"] });
+      // Force refetch to update the UI
+      await queryClient.refetchQueries({ queryKey: ["${plural}"] });
     },
   });
 };
@@ -262,11 +308,15 @@ export const useUpdate${modelName} = () => {
     mutationFn: ({ id, data }: { id: number; data: ${modelName}Input }) =>
       ${plural}Api.update(id, data),
     onSuccess: async (updated${modelName}) => {
+      // Optimistically update the cache for immediate UI feedback
       queryClient.setQueryData<any[]>(["${plural}"], (old) => {
         if (!old) return old;
         return old.map((item) => (item.id === updated${modelName}.id ? updated${modelName} : item));
       });
-      await queryClient.invalidateQueries({ queryKey: ["${plural}"], refetchType: "active" });
+      // Invalidate and refetch to ensure we have the latest data from server
+      await queryClient.invalidateQueries({ queryKey: ["${plural}"] });
+      // Force refetch to update the UI
+      await queryClient.refetchQueries({ queryKey: ["${plural}"] });
     },
   });
 };
@@ -275,8 +325,11 @@ export const useDelete${modelName} = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => ${plural}Api.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["${plural}"] });
+    onSuccess: async () => {
+      // Invalidate and refetch to ensure we have the latest data from server
+      await queryClient.invalidateQueries({ queryKey: ["${plural}"] });
+      // Force refetch to update the UI
+      await queryClient.refetchQueries({ queryKey: ["${plural}"] });
     },
   });
 };
@@ -1357,30 +1410,48 @@ try {
 
   // Update main API route
   const mainApiRoute = path.join(process.cwd(), 'src', 'app', 'api', '[[...route]]', 'route.ts');
-  const mainApiContent = fs.readFileSync(mainApiRoute, 'utf-8');
+  let mainApiContent = fs.readFileSync(mainApiRoute, 'utf-8');
   
   // Add import
   const importLine = `import { ${model.name.toLowerCase()}sApi } from "@/server/api/${model.name.toLowerCase()}s";`;
   if (!mainApiContent.includes(importLine)) {
-    const importInsertionPoint = mainApiContent.indexOf('import { abilitiesApi }');
-    if (importInsertionPoint !== -1) {
-      const newContent = mainApiContent.slice(0, importInsertionPoint) + 
-        importLine + '\n' + 
-        mainApiContent.slice(importInsertionPoint);
-      fs.writeFileSync(mainApiRoute, newContent);
+    // Find the last import before the middlewares import
+    const middlewaresImportIndex = mainApiContent.indexOf('import {');
+    const healthApiImportIndex = mainApiContent.indexOf('import { healthApi }');
+    let insertAfter = healthApiImportIndex;
+    if (insertAfter === -1) {
+      // Fallback: find any import line
+      const lastImportMatch = mainApiContent.match(/import.*from.*;\n/g);
+      if (lastImportMatch) {
+        const lastImport = lastImportMatch[lastImportMatch.length - 1];
+        insertAfter = mainApiContent.lastIndexOf(lastImport) + lastImport.length;
+      } else {
+        insertAfter = middlewaresImportIndex;
+      }
+    } else {
+      // Find the end of the healthApi import line
+      const endOfLine = mainApiContent.indexOf('\n', healthApiImportIndex);
+      insertAfter = endOfLine + 1;
     }
+    mainApiContent = mainApiContent.slice(0, insertAfter) + 
+      importLine + '\n' + 
+      mainApiContent.slice(insertAfter);
+    fs.writeFileSync(mainApiRoute, mainApiContent);
   }
   
   // Add route
   const routeLine = `app.route("/${model.name.toLowerCase()}s", ${model.name.toLowerCase()}sApi);`;
   if (!mainApiContent.includes(routeLine)) {
-    const routeInsertionPoint = mainApiContent.indexOf('app.route("/abilities"');
-    if (routeInsertionPoint !== -1) {
-      const afterAbilities = mainApiContent.indexOf('\n', routeInsertionPoint);
-      const newContent = mainApiContent.slice(0, afterAbilities + 1) + 
-        routeLine + '\n' + 
-        mainApiContent.slice(afterAbilities + 1);
-      fs.writeFileSync(mainApiRoute, newContent);
+    // Find the last app.route line
+    const routeMatches = mainApiContent.match(/app\.route\([^)]+\);/g);
+    if (routeMatches && routeMatches.length > 0) {
+      const lastRoute = routeMatches[routeMatches.length - 1];
+      const lastRouteIndex = mainApiContent.lastIndexOf(lastRoute);
+      const endOfRoute = lastRouteIndex + lastRoute.length;
+      mainApiContent = mainApiContent.slice(0, endOfRoute) + 
+        '\n' + routeLine + 
+        mainApiContent.slice(endOfRoute);
+      fs.writeFileSync(mainApiRoute, mainApiContent);
     }
   }
 
