@@ -100,7 +100,7 @@
   --sidebar-accent: 81 55% 25%;
   --sidebar-accent-foreground: 0 0% 100%;
   --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: 81 55% 57%;
+  --sidebar-ring: var(--primary-hue, 81) var(--primary-saturation, 55%) var(--primary-lightness, 57%);
 }
 
 @theme inline {

@@ -4,7 +4,7 @@ import * as React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { userSchema, type UserInput } from "./schema";
+import { userSchema, type UserInput } from "@/features/users/schema";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -27,7 +27,7 @@ import {
   InputGroupAddon,
   InputGroupText,
 } from "@/components/ui/input-group";
-import { useCreateUser, useUpdateUser } from "./hooks";
+import { useCreateUser, useUpdateUser } from "@/features/users/hooks";
 
 type User = {
   id: number;
@@ -237,3 +237,4 @@ export const UserForm = ({ user, onSuccess }: UserFormProps) => {
     </div>
   );
 };
+

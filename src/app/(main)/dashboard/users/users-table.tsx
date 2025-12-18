@@ -339,3 +339,4 @@ export const UsersTable = ({ data, onDelete, onEdit, onView, onBulkDelete }: Use
     </div>
   );
 };
+

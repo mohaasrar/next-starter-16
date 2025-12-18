@@ -1,6 +1,6 @@
 "use client";
 
-import { SettingsForm } from "@/features/settings/components";
+import { SettingsForm } from "./settings-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAbility } from "@/lib/authorization";
 import { Loader2 } from "lucide-react";

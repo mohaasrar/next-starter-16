@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateAuthUser, useUpdateAuthUser } from "./hooks";
+import { useCreateAuthUser, useUpdateAuthUser } from "@/features/auth-users/hooks";
 
 const authUserSchema = z.object({
   name: z.string().min(1, "Name is required"),

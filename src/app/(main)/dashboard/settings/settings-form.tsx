@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { settingsSchema, type SettingsInput } from "./schema";
+import { settingsSchema, type SettingsInput } from "@/features/settings/schema";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUpdateSettings, useSettings } from "./hooks";
+import { useUpdateSettings, useSettings } from "@/features/settings/hooks";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -30,6 +30,8 @@ export const SettingsForm = () => {
   } = useForm<SettingsInput>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
+      siteName: "",
+      siteDescription: "",
       theme: "system",
       emailNotifications: true,
       maintenanceMode: false,
@@ -54,10 +56,6 @@ export const SettingsForm = () => {
     }
   };
 
-  const theme = watch("theme");
-  const emailNotifications = watch("emailNotifications");
-  const maintenanceMode = watch("maintenanceMode");
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -65,6 +63,10 @@ export const SettingsForm = () => {
       </div>
     );
   }
+
+  const theme = watch("theme");
+  const emailNotifications = watch("emailNotifications");
+  const maintenanceMode = watch("maintenanceMode");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -101,19 +103,19 @@ export const SettingsForm = () => {
 
         <div className="space-y-2">
           <Label htmlFor="theme">Theme</Label>
-          <Select
-            value={theme}
-            onValueChange={(value) => setValue("theme", value as "light" | "dark" | "system")}
-          >
-            <SelectTrigger id="theme">
-              <SelectValue placeholder="Select theme" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
-              <SelectItem value="system">System</SelectItem>
-            </SelectContent>
-          </Select>
+        <Select
+          value={watch("theme")}
+          onValueChange={(value) => setValue("theme", value as "light" | "dark" | "system")}
+        >
+          <SelectTrigger id="theme">
+            <SelectValue placeholder="Select theme" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="light">Light</SelectItem>
+            <SelectItem value="dark">Dark</SelectItem>
+            <SelectItem value="system">System</SelectItem>
+          </SelectContent>
+        </Select>
           {errors.theme && (
             <p className="text-sm text-destructive">{errors.theme.message}</p>
           )}
@@ -126,7 +128,7 @@ export const SettingsForm = () => {
         <div className="flex items-center space-x-2">
           <Checkbox
             id="emailNotifications"
-            checked={emailNotifications}
+            checked={watch("emailNotifications")}
             onCheckedChange={(checked) =>
               setValue("emailNotifications", checked === true)
             }
@@ -142,7 +144,7 @@ export const SettingsForm = () => {
         <div className="flex items-center space-x-2">
           <Checkbox
             id="maintenanceMode"
-            checked={maintenanceMode}
+            checked={watch("maintenanceMode")}
             onCheckedChange={(checked) =>
               setValue("maintenanceMode", checked === true)
             }

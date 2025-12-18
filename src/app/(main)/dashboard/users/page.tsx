@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useAuthUsers } from "@/features/auth-users/hooks";
-import { AuthUsersTable } from "@/components/tables/auth-users-table";
-import { AuthUserForm } from "@/features/auth-users/components";
+import { useUsers, useDeleteUser } from "@/features/users/hooks";
+import { UsersTable } from "./users-table";
+import { UserForm } from "./users-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -14,80 +15,96 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAbility } from "@/lib/authorization";
-import { Button } from "@/components/ui/button";
+import { useConfirmDialogStore } from "@/store/confirm-dialog-store";
 
-type AuthUser = {
-  id: string;
+type User = {
+  id: number;
   name: string;
   email: string;
-  emailVerified: boolean;
-  role: "user" | "admin" | "super_admin";
-  image: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  role: "user" | "admin" | "super_admin" | null;
+  createdAt: Date | null;
 };
 
-export default function AuthUsersPage() {
-  const { data = [], isLoading } = useAuthUsers();
+export default function UsersPage() {
+  const { data = [], isLoading } = useUsers();
+  const deleteUser = useDeleteUser();
   const ability = useAbility();
   const [formOpen, setFormOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
   const canCreate = ability.can("create", "User");
   const canUpdate = ability.can("update", "User");
+  const canDelete = ability.can("delete", "User");
 
-  // Show loading state while checking permissions
-  if (ability.isPending || isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const confirmDialog = useConfirmDialogStore();
 
-  // Redirect if user doesn't have permission to view this page
-  // Auth Users page requires create permission (admin/super_admin only)
-  if (!canCreate) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
-          <p className="text-muted-foreground mt-2">
-            You don't have permission to view this page. This page is only available to administrators.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleDelete = async (id: number) => {
+    confirmDialog.openDialog({
+      title: "Delete User",
+      description: "Are you sure you want to delete this user? This action cannot be undone.",
+      variant: "destructive",
+      okLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await deleteUser.mutateAsync(id);
+          toast.success("User deleted successfully");
+        } catch (error) {
+          toast.error("Failed to delete user", {
+            description: error instanceof Error ? error.message : "An error occurred",
+          });
+        }
+      },
+    });
+  };
 
-  const handleEdit = (user: AuthUser) => {
-    console.log("handleEdit called with user (auth-users):", user);
+  const handleBulkDelete = async (ids: number[]) => {
+    confirmDialog.openDialog({
+      title: "Delete Users",
+      description: `Are you sure you want to delete ${ids.length} user(s)? This action cannot be undone.`,
+      variant: "destructive",
+      okLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await Promise.all(ids.map((id) => deleteUser.mutateAsync(id)));
+          toast.success(`${ids.length} user(s) deleted successfully`);
+        } catch (error) {
+          toast.error("Failed to delete users", {
+            description: error instanceof Error ? error.message : "An error occurred",
+          });
+        }
+      },
+    });
+  };
+
+  const handleEdit = (user: User) => {
+    console.log("handleEdit called with user:", user);
     setSelectedUser(user);
     setIsEditMode(true);
     setFormOpen(true);
     console.log("formOpen should be true now");
   };
 
-  const handleView = (user: AuthUser) => {
+  const handleView = (user: User) => {
     setSelectedUser(user);
     setViewDialogOpen(true);
-  };
-
-  const handleNewUser = () => {
-    console.log("handleNewUser called (auth-users)");
-    setSelectedUser(null);
-    setIsEditMode(false);
-    setFormOpen(true);
-    console.log("formOpen should be true now");
   };
 
   const handleFormSuccess = () => {
     setFormOpen(false);
     setSelectedUser(null);
     setIsEditMode(false);
+  };
+
+  const handleNewUser = () => {
+    console.log("handleNewUser called");
+    setSelectedUser(null);
+    setIsEditMode(false);
+    setFormOpen(true);
+    console.log("formOpen should be true now");
   };
 
   if (isLoading) {
@@ -103,13 +120,12 @@ export default function AuthUsersPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between space-y-2">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Auth Users</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h2>
             <p className="text-muted-foreground text-sm sm:text-base">
-              Manage Better Auth users and their roles
+              Manage your users and their permissions
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {formOpen && <span className="text-sm text-muted-foreground">Form is open</span>}
+          {canCreate && (
             <Button 
               onClick={handleNewUser} 
               variant="default"
@@ -127,16 +143,18 @@ export default function AuthUsersPage() {
               <Plus className="mr-2 h-4 w-4" />
               New User
             </Button>
-          </div>
+          )}
         </div>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="overflow-x-auto">
-              <AuthUsersTable 
+              <UsersTable 
                 data={data} 
-                onEdit={handleEdit}
+                onDelete={canDelete ? handleDelete : undefined}
+                onEdit={canUpdate ? handleEdit : undefined}
                 onView={handleView}
+                onBulkDelete={canDelete ? handleBulkDelete : undefined}
               />
             </div>
           </CardContent>
@@ -144,7 +162,7 @@ export default function AuthUsersPage() {
       </div>
 
       <Sheet open={formOpen} onOpenChange={(open) => {
-        console.log("Sheet onOpenChange called with (auth-users):", open);
+        console.log("Sheet onOpenChange called with:", open);
         setFormOpen(open);
         if (!open) {
           setSelectedUser(null);
@@ -157,11 +175,11 @@ export default function AuthUsersPage() {
             <SheetDescription>
               {isEditMode 
                 ? "Update user information. Modify the fields as needed."
-                : "Add a new Better Auth user to the system. Fill in all required fields."}
+                : "Add a new user to the system. Fill in all required fields."}
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <AuthUserForm 
+            <UserForm 
               key={selectedUser?.id || "new"} 
               user={selectedUser} 
               onSuccess={handleFormSuccess} 
@@ -182,7 +200,7 @@ export default function AuthUsersPage() {
             <div className="space-y-4 py-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">ID</label>
-                <p className="text-sm mt-1 font-mono">{selectedUser.id}</p>
+                <p className="text-sm mt-1">{selectedUser.id}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Name</label>
@@ -194,24 +212,14 @@ export default function AuthUsersPage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Role</label>
-                <p className="text-sm mt-1 capitalize">
-                  {selectedUser.role === "super_admin" ? "Super Admin" : selectedUser.role}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Email Verified</label>
-                <p className="text-sm mt-1">{selectedUser.emailVerified ? "Yes" : "No"}</p>
+                <p className="text-sm mt-1 capitalize">{selectedUser.role || "user"}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Created At</label>
                 <p className="text-sm mt-1">
-                  {new Date(selectedUser.createdAt).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Updated At</label>
-                <p className="text-sm mt-1">
-                  {new Date(selectedUser.updatedAt).toLocaleString()}
+                  {selectedUser.createdAt 
+                    ? new Date(selectedUser.createdAt).toLocaleString()
+                    : "N/A"}
                 </p>
               </div>
             </div>
@@ -221,4 +229,3 @@ export default function AuthUsersPage() {
     </>
   );
 }
-
