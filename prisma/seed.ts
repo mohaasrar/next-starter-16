@@ -31,12 +31,30 @@ async function main() {
     where: { email: adminEmail },
   });
 
+  // Get or create super_admin role
+  const superAdminRole = await prisma.role.findUnique({
+    where: { name: "super_admin" },
+  });
+
+  if (!superAdminRole) {
+    console.log("⚠️  Super admin role does not exist. Please run 'npm run db:seed:abilities' first.");
+    return;
+  }
+
   if (existingAdmin) {
-    // Update existing user to super_admin
-    if (existingAdmin.role !== "super_admin") {
+    // Update existing user to super_admin role
+    const currentRole = await prisma.role.findUnique({
+      where: { id: existingAdmin.roleId || "" },
+    });
+
+    if (currentRole?.name !== "super_admin") {
       await prisma.user.update({
         where: { email: adminEmail },
-        data: { role: "super_admin" },
+        data: {
+          role: {
+            connect: { id: superAdminRole.id },
+          },
+        },
       });
       console.log(`✅ Updated user ${adminEmail} to super_admin role`);
     } else {
@@ -53,15 +71,20 @@ async function main() {
   if (!existingAdmin) {
     const firstUser = await prisma.user.findFirst({
       orderBy: { createdAt: "asc" },
+      include: { role: true },
     });
     
-    if (firstUser && firstUser.role !== "super_admin") {
+    if (firstUser && firstUser.role?.name !== "super_admin") {
       await prisma.user.update({
         where: { id: firstUser.id },
-        data: { role: "super_admin" },
+        data: {
+          role: {
+            connect: { id: superAdminRole.id },
+          },
+        },
       });
       console.log(`✅ Updated first user (${firstUser.email}) to super_admin role`);
-    } else if (firstUser) {
+    } else if (firstUser?.role?.name === "super_admin") {
       console.log(`ℹ️  First user (${firstUser.email}) already has super_admin role`);
     }
   }

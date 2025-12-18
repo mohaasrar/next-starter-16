@@ -85,5 +85,17 @@ const FieldOrientation = React.forwardRef<
 ));
 FieldOrientation.displayName = "FieldOrientation";
 
-export { Field, FieldLabel, FieldDescription, FieldError, FieldGroup, FieldOrientation };
+const FieldSeparator = React.forwardRef<
+  HTMLHRElement,
+  React.HTMLAttributes<HTMLHRElement>
+>(({ className, ...props }, ref) => (
+  <hr
+    ref={ref}
+    className={cn("my-4 border-t border-border", className)}
+    {...props}
+  />
+));
+FieldSeparator.displayName = "FieldSeparator";
+
+export { Field, FieldLabel, FieldDescription, FieldError, FieldGroup, FieldOrientation, FieldSeparator };
 

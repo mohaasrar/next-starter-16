@@ -16,12 +16,13 @@ model User {
   email         String   @unique
   emailVerified Boolean  @default(false) @map("email_verified")
   image         String?
-  role          String   @default("user") // user, admin, super_admin
+  roleId        String?  @map("role_id")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   accounts Account[]
   sessions Session[]
+  role     Role?    @relation(fields: [roleId], references: [id])
 
   @@map("user")
 }
@@ -97,5 +98,33 @@ model Settings {
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+// Authorization models
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  abilities   Ability[]
+  users       User[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("role")
+}
+
+model Ability {
+  id         String   @id @default(cuid())
+  subject    String
+  action     String
+  conditions Json?
+  fields     String[]
+  inverted   Boolean? @default(false)
+  reason     String?
+  roles      Role[]
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ability")
 }
 

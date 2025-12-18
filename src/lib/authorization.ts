@@ -1,30 +1,30 @@
-import { defineAbility, type AppAbility, type User } from "@/server/auth/casl";
+import { type AppAbility } from "@/server/auth/casl";
 import { useUserWithRole } from "./use-user-with-role";
 import { useMemo } from "react";
+import { createMongoAbility } from "@casl/ability";
 
 /**
- * Get user's ability based on their role
+ * Extended ability type with loading state
  */
-export const getUserAbility = (user: User | null | undefined): AppAbility => {
-  if (!user) {
-    // Guest user - no permissions
-    return defineAbility({ role: "user" });
-  }
-
-  return defineAbility({
-    role: (user.role as "user" | "admin" | "super_admin") || "user",
-  });
-};
+export type AbilityWithPending = AppAbility & { isPending: boolean };
 
 /**
- * React hook to get current user's ability
+ * React hook to get current user's ability from backend
  */
-export const useAbility = () => {
-  const { role } = useUserWithRole();
+export const useAbility = (): AbilityWithPending => {
+  const { ability, isPending } = useUserWithRole();
 
-  return useMemo(() => {
-    return defineAbility({ role });
-  }, [role]);
+  // Use ability from backend, or create a default one if not loaded
+  const finalAbility = useMemo(() => {
+    if (ability) {
+      return ability;
+    }
+    // Default ability for guest/unauthenticated users
+    return createMongoAbility([]) as AppAbility;
+  }, [ability]);
+
+  // Return ability with isPending flag
+  return Object.assign(finalAbility, { isPending }) as AbilityWithPending;
 };
 
 /**

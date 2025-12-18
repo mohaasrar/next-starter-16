@@ -3,12 +3,13 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "@/lib/env";
 
-declare global {
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
-  // eslint-disable-next-line no-var
-  var pool: Pool | undefined;
+// Type augmentation for globalThis - using interface to avoid conflicts
+interface GlobalPrisma {
+  prisma?: PrismaClient;
+  pool?: Pool;
 }
+
+declare const globalThis: typeof global & GlobalPrisma;
 
 // Create PostgreSQL pool
 const getPool = (): Pool => {

@@ -67,8 +67,12 @@ export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   }
 
   // Filter navigation items based on permissions
+  // While loading, only show items that don't require permissions (like Dashboard)
+  // This prevents showing unauthorized items that will disappear after load
   const visibleNavigation = navigation.filter((item) => {
-    if (!item.permission) return true; // Always visible
+    if (!item.permission) return true; // Always visible (e.g., Dashboard)
+    // While loading, hide items that require permissions to prevent flash
+    if (ability.isPending) return false;
     return ability.can(item.permission.action, item.permission.subject);
   });
 

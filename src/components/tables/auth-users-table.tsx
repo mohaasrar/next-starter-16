@@ -108,12 +108,22 @@ export const AuthUsersTable = ({ data, onEdit, onView }: AuthUsersTableProps) =>
         );
       },
       cell: ({ row }) => {
-        const role = row.getValue("role") as string;
+        const role = row.getValue("role") as string | undefined;
         const roleColors = {
           super_admin: "bg-purple-500/10 text-purple-500",
           admin: "bg-blue-500/10 text-blue-500",
           user: "bg-gray-500/10 text-gray-500",
         };
+        
+        // Handle undefined or null role
+        if (!role) {
+          return (
+            <Badge className={roleColors.user}>
+              User
+            </Badge>
+          );
+        }
+        
         return (
           <Badge className={roleColors[role as keyof typeof roleColors] || roleColors.user}>
             {role === "super_admin" ? "Super Admin" : role.charAt(0).toUpperCase() + role.slice(1)}

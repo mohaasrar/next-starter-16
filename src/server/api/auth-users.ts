@@ -1,27 +1,37 @@
 import { Hono } from "hono";
 import { db } from "../db/client";
-import { getCurrentUser } from "../auth/get-session";
-import { defineAbility } from "../auth/casl";
+import { authorize } from "./middlewares";
+import type { Variables } from "./types";
 
-export const authUsersApi = new Hono();
+export const authUsersApi = new Hono<{ Variables: Variables }>();
 
 // Get all Better Auth users
-authUsersApi.get("/", async (c) => {
+authUsersApi.get("/", authorize("read", "User"), async (c) => {
   try {
-    const user = await getCurrentUser();
-    const ability = defineAbility({
-      role: (user?.role as "user" | "admin" | "super_admin") || "user",
-    });
-
-    if (!ability.can("read", "User")) {
-      return c.json({ error: "Unauthorized" }, 403);
-    }
-
     const users = await db.user.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        role: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
-    return c.json(users);
+    // Transform users to include role name as string
+    const usersWithRole = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      role: user.role?.name || "user",
+      image: user.image,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
+
+    return c.json(usersWithRole);
   } catch (error) {
     console.error("Error fetching auth users:", error);
     return c.json({ error: "Failed to fetch users. Please check your database connection." }, 500);
@@ -29,32 +39,53 @@ authUsersApi.get("/", async (c) => {
 });
 
 // Create Better Auth user
-authUsersApi.post("/", async (c) => {
+authUsersApi.post("/", authorize("create", "User"), async (c) => {
   try {
-    const user = await getCurrentUser();
-    const ability = defineAbility({
-      role: (user?.role as "user" | "admin" | "super_admin") || "user",
-    });
-
-    if (!ability.can("create", "User")) {
-      return c.json({ error: "Unauthorized" }, 403);
-    }
-
     const body = await c.req.json();
 
     // Create user directly in database
     // Note: For Better Auth, users should ideally be created through the registration flow
     // This is for admin user creation
+    const roleName = body.role || "user";
+    const role = await db.role.findUnique({
+      where: { name: roleName },
+    });
+
+    if (!role) {
+      return c.json({ error: `Role "${roleName}" not found` }, 400);
+    }
+
     const newUser = await db.user.create({
       data: {
         name: body.name,
         email: body.email,
-        role: body.role || "user",
         emailVerified: false,
+        role: {
+          connect: { id: role.id },
+        },
+      },
+      include: {
+        role: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
-    return c.json(newUser, 201);
+    // Transform to include role name as string
+    const userWithRole = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      emailVerified: newUser.emailVerified,
+      role: newUser.role?.name || "user",
+      image: newUser.image,
+      createdAt: newUser.createdAt,
+      updatedAt: newUser.updatedAt,
+    };
+
+    return c.json(userWithRole, 201);
   } catch (error) {
     console.error("Error creating auth user:", error);
     return c.json({ error: "Failed to create user. Please check your database connection." }, 500);
@@ -62,38 +93,10 @@ authUsersApi.post("/", async (c) => {
 });
 
 // Update Better Auth user
-authUsersApi.put("/:id", async (c) => {
+authUsersApi.put("/:id", authorize("update", "User"), async (c) => {
   try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return c.json({ error: "Unauthorized: No user session" }, 401);
-    }
-
-    console.log("Current user attempting update:", {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    });
-
-    const ability = defineAbility({
-      role: (user.role as "user" | "admin" | "super_admin") || "user",
-    });
-
-    if (!ability.can("update", "User")) {
-      console.log("Authorization failed. User role:", user.role, "cannot update users");
-      return c.json({ 
-        error: "Forbidden: You don't have permission to update users. Required role: admin or super_admin",
-        userRole: user.role 
-      }, 403);
-    }
-
     const id = c.req.param("id");
     const body = await c.req.json();
-
-    console.log("Update request body:", JSON.stringify(body, null, 2));
-    console.log("Role value:", body.role);
-    console.log("Role type:", typeof body.role);
 
     // Validate role
     const validRoles = ["user", "admin", "super_admin"];
@@ -101,27 +104,47 @@ authUsersApi.put("/:id", async (c) => {
       return c.json({ error: `Invalid role. Must be one of: ${validRoles.join(", ")}` }, 400);
     }
 
-    // Only allow updating name, email, and role
-    const updateData: { name: string; email: string; role?: string } = {
+    // Build update data
+    const updateData: {
+      name: string;
+      email: string;
+      role?: { connect: { name: string } };
+    } = {
       name: body.name,
       email: body.email,
     };
 
     if (body.role !== undefined) {
-      updateData.role = body.role;
+      updateData.role = {
+        connect: { name: body.role },
+      };
     }
-
-    console.log("Update data:", JSON.stringify(updateData, null, 2));
 
     const updatedUser = await db.user.update({
       where: { id },
       data: updateData,
+      include: {
+        role: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
-    console.log("Updated user:", JSON.stringify(updatedUser, null, 2));
-    console.log("Updated user role:", updatedUser.role);
+    // Transform to include role name as string
+    const userWithRole = {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      emailVerified: updatedUser.emailVerified,
+      role: updatedUser.role?.name || "user",
+      image: updatedUser.image,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+    };
 
-    return c.json(updatedUser);
+    return c.json(userWithRole);
   } catch (error) {
     console.error("Error updating auth user:", error);
     return c.json({ error: "Failed to update user. Please check your database connection." }, 500);

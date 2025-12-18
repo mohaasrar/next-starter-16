@@ -17,6 +17,7 @@ import {
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAbility } from "@/lib/authorization";
+import { useConfirmDialogStore } from "@/store/confirm-dialog-store";
 
 type User = {
   id: number;
@@ -39,28 +40,44 @@ export default function UsersPage() {
   const canUpdate = ability.can("update", "User");
   const canDelete = ability.can("delete", "User");
 
+  const confirmDialog = useConfirmDialogStore();
+
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this user?")) {
-      try {
-        await deleteUser.mutateAsync(id);
-        toast.success("User deleted successfully");
-      } catch (error) {
-        toast.error("Failed to delete user", {
-          description: error instanceof Error ? error.message : "An error occurred",
-        });
-      }
-    }
+    confirmDialog.openDialog({
+      title: "Delete User",
+      description: "Are you sure you want to delete this user? This action cannot be undone.",
+      variant: "destructive",
+      okLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await deleteUser.mutateAsync(id);
+          toast.success("User deleted successfully");
+        } catch (error) {
+          toast.error("Failed to delete user", {
+            description: error instanceof Error ? error.message : "An error occurred",
+          });
+        }
+      },
+    });
   };
 
   const handleBulkDelete = async (ids: number[]) => {
-    try {
-      await Promise.all(ids.map((id) => deleteUser.mutateAsync(id)));
-      toast.success(`${ids.length} user(s) deleted successfully`);
-    } catch (error) {
-      toast.error("Failed to delete users", {
-        description: error instanceof Error ? error.message : "An error occurred",
-      });
-    }
+    confirmDialog.openDialog({
+      title: "Delete Users",
+      description: `Are you sure you want to delete ${ids.length} user(s)? This action cannot be undone.`,
+      variant: "destructive",
+      okLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await Promise.all(ids.map((id) => deleteUser.mutateAsync(id)));
+          toast.success(`${ids.length} user(s) deleted successfully`);
+        } catch (error) {
+          toast.error("Failed to delete users", {
+            description: error instanceof Error ? error.message : "An error occurred",
+          });
+        }
+      },
+    });
   };
 
   const handleEdit = (user: User) => {

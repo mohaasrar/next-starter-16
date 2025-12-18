@@ -39,6 +39,15 @@ export default function AuthUsersPage() {
   const canCreate = ability.can("create", "User");
   const canUpdate = ability.can("update", "User");
 
+  // Show loading state while checking permissions
+  if (ability.isPending || isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   // Redirect if user doesn't have permission to view this page
   // Auth Users page requires create permission (admin/super_admin only)
   if (!canCreate) {

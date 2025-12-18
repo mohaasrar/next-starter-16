@@ -3,10 +3,20 @@
 import { SettingsForm } from "@/features/settings/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAbility } from "@/lib/authorization";
+import { Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const ability = useAbility();
   const canUpdate = ability.can("update", "Settings");
+
+  // Show loading state while checking permissions
+  if (ability.isPending) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   // Redirect if user doesn't have permission to view this page
   if (!canUpdate) {

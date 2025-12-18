@@ -40,8 +40,12 @@ export async function getCurrentUser() {
         id: true,
         name: true,
         email: true,
-        role: true,
         image: true,
+        role: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
@@ -53,19 +57,22 @@ export async function getCurrentUser() {
       };
     }
 
-    // Ensure role is set, default to "user" if null/undefined
-    if (!user.role) {
-      console.warn("User role is null/undefined, defaulting to 'user' for:", user.email);
-      user.role = "user";
-    }
+    // Get role name, default to "user" if no role assigned
+    const roleName = (user.role?.name as "user" | "admin" | "super_admin") || "user";
 
     console.log("Current user fetched:", {
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: roleName,
     });
 
-    return user;
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      role: roleName,
+    };
   } catch (error) {
     console.error("Error fetching user from database:", error);
     // Fallback to session user without role

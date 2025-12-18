@@ -14,16 +14,34 @@ import "dotenv/config";
 
 const prisma = new PrismaClient();
 
-async function updateUserRole(email: string, role: "user" | "admin" | "super_admin") {
+async function updateUserRole(email: string, roleName: "user" | "admin" | "super_admin") {
   try {
+    // Find the role by name
+    const role = await prisma.role.findUnique({
+      where: { name: roleName },
+    });
+
+    if (!role) {
+      console.error(`❌ Role "${roleName}" not found. Please run 'npm run db:seed:abilities' first.`);
+      process.exit(1);
+    }
+
     const user = await prisma.user.update({
       where: { email },
-      data: { role },
+      data: {
+        role: {
+          connect: { id: role.id },
+        },
+      },
       select: {
         id: true,
         name: true,
         email: true,
-        role: true,
+        role: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 

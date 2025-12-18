@@ -1,22 +1,13 @@
 import { Hono } from "hono";
 import { db } from "../db/client";
-import { getCurrentUser } from "../auth/get-session";
-import { defineAbility } from "../auth/casl";
+import { authorize } from "./middlewares";
+import type { Variables } from "./types";
 
-export const settingsApi = new Hono();
+export const settingsApi = new Hono<{ Variables: Variables }>();
 
 // Get settings (returns first settings record or creates default)
-settingsApi.get("/", async (c) => {
+settingsApi.get("/", authorize("read", "Settings"), async (c) => {
   try {
-    const user = await getCurrentUser();
-    const ability = defineAbility({
-      role: (user?.role as "user" | "admin" | "super_admin") || "user",
-    });
-
-    if (!ability.can("read", "Settings")) {
-      return c.json({ error: "Unauthorized" }, 403);
-    }
-
     const setting = await db.settings.findFirst();
     
     if (!setting) {
@@ -45,17 +36,8 @@ settingsApi.get("/", async (c) => {
 });
 
 // Update settings
-settingsApi.put("/", async (c) => {
+settingsApi.put("/", authorize("update", "Settings"), async (c) => {
   try {
-    const user = await getCurrentUser();
-    const ability = defineAbility({
-      role: (user?.role as "user" | "admin" | "super_admin") || "user",
-    });
-
-    if (!ability.can("update", "Settings")) {
-      return c.json({ error: "Unauthorized" }, 403);
-    }
-
     const body = await c.req.json();
     
     // Check if settings exist
